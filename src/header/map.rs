@@ -2027,7 +2027,7 @@ impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T> {
 impl FromStr for HeaderMap {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut out = HeaderMap::new();
+        let mut out = HeaderMap::with_capacity(s.lines().count());
         for line in s.lines().filter(|line| !line.trim().is_empty()) {
             let delimiter = line.find(':').ok_or(InvalidHeaderName::new())?;
             let val = HeaderValue::from_str(line[delimiter + 1..].trim())?;
