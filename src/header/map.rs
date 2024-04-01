@@ -1,6 +1,7 @@
 use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::str::FromStr;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::iter::{FromIterator, FusedIterator};
 use std::marker::PhantomData;
@@ -2005,6 +2006,39 @@ impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T> {
     }
 }
 
+/// Parses a `HeaderMap` from a string containing HTTP headers and header values separated by colons,
+/// in the same format it'd be found in in an actual HTTP request or response. This is useful if you
+/// want to parse headers from a file.
+/// 
+/// # Examples
+/// 
+/// ```
+/// use http::HeaderMap;
+/// let headers: HeaderMap = "\
+/// Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8
+/// Accept-Encoding: gzip, deflate, br
+/// Accept-Language: en-US,en;q=0.5
+/// User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0
+/// ".parse().unwrap();
+/// 
+/// assert_eq!(headers["User-Agent"], "Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0");
+/// ```
+
+impl FromStr for HeaderMap {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut out = HeaderMap::new();
+        for line in s.lines().filter(|line| !line.trim().is_empty()) {
+            let delimiter = line.find(':').ok_or(InvalidHeaderName::new())?;
+            let val = HeaderValue::from_str(line[delimiter + 1..].trim())?;
+            let name = HeaderName::from_str(line[..delimiter].trim())?;
+            out.insert(name, val);
+        }
+
+        Ok(out)
+    }
+}
+
 /// Try to convert a `HashMap` into a `HeaderMap`.
 ///
 /// # Examples
@@ -2029,7 +2063,6 @@ where
     T::Error: Into<crate::Error>,
 {
     type Error = Error;
-
     fn try_from(c: &'a HashMap<K, V>) -> Result<Self, Self::Error> {
         c.iter()
             .map(|(k, v)| -> crate::Result<(HeaderName, T)> {
@@ -3898,4 +3931,16 @@ fn skip_duplicates_during_key_iteration() {
     map.try_append("a", HeaderValue::from_static("a")).unwrap();
     map.try_append("a", HeaderValue::from_static("b")).unwrap();
     assert_eq!(map.keys().count(), map.keys_len());
+}
+
+#[test]
+fn test_from_str() {
+    let headers: HeaderMap = "\
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8
+    Accept-Encoding: gzip, deflate, br
+    Accept-Language: en-US,en;q=0.5
+    User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0\
+    ".parse().unwrap();
+    
+    assert_eq!(headers["User-Agent"], "Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0");
 }
