@@ -705,12 +705,12 @@ impl<T> HeaderMap<T> {
             .entries
             .len()
             .checked_add(additional)
-            .ok_or_else(|| MaxSizeReached::new())?;
+            .ok_or_else(MaxSizeReached::new)?;
 
         if cap > self.indices.len() {
             let cap = cap
                 .checked_next_power_of_two()
-                .ok_or_else(|| MaxSizeReached::new())?;
+                .ok_or_else(MaxSizeReached::new)?;
             if cap > MAX_SIZE {
                 return Err(MaxSizeReached::new());
             }
@@ -1449,9 +1449,9 @@ impl<T> HeaderMap<T> {
     }
 
     #[inline]
-    fn find<K: ?Sized>(&self, key: &K) -> Option<(usize, usize)>
+    fn find<K>(&self, key: &K) -> Option<(usize, usize)>
     where
-        K: Hash + Into<HeaderName>,
+        K: Hash + Into<HeaderName> + ?Sized,
         HeaderName: PartialEq<K>,
     {
         if self.entries.is_empty() {
@@ -3603,9 +3603,9 @@ fn probe_distance(mask: Size, hash: HashValue, current: usize) -> usize {
     current.wrapping_sub(desired_pos(mask, hash)) & mask as usize
 }
 
-fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
+fn hash_elem_using<K>(danger: &Danger, k: &K) -> HashValue
 where
-    K: Hash,
+    K: Hash + ?Sized,
 {
     use fnv::FnvHasher;
 
@@ -3838,7 +3838,7 @@ mod as_header_name {
     impl Sealed for String {
         #[inline]
         fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, TryEntryError> {
-            Ok(self.as_str().try_entry(map)?)
+            self.as_str().try_entry(map)
         }
 
         #[inline]

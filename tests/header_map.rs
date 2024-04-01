@@ -261,6 +261,7 @@ fn as_header_name() {
 }
 
 #[test]
+#[allow(clippy::needless_range_loop)]
 fn insert_all_std_headers() {
     let mut m = HeaderMap::new();
 
@@ -285,6 +286,7 @@ fn insert_all_std_headers() {
 }
 
 #[test]
+#[allow(clippy::needless_range_loop)]
 fn insert_79_custom_std_headers() {
     let mut h = HeaderMap::new();
     let hdrs = custom_std(79);
@@ -327,7 +329,7 @@ fn custom_std(n: usize) -> Vec<HeaderName> {
         .collect()
 }
 
-const STD: &'static [HeaderName] = &[
+const STD: &[HeaderName] = &[
     ACCEPT,
     ACCEPT_CHARSET,
     ACCEPT_ENCODING,
